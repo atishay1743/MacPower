@@ -39,9 +39,9 @@ let ctx = CGContext(
     bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
 ctx.scaleBy(x: scale, y: scale)
 
-// Base gradient: indigo (bottom-left) to soft blue (top-right), like the icon.
+// Base gradient: orange (bottom-left) to amber (top-right), like the icon.
 ctx.drawLinearGradient(
-    gradient([(0x4A3CC8, 1, 0), (0x4F63DC, 1, 0.5), (0x5A8CEE, 1, 1)]),
+    gradient([(0xD4491A, 1, 0), (0xDB6A1C, 1, 0.5), (0xE08F24, 1, 1)]),
     start: .zero, end: CGPoint(x: points.width, y: points.height), options: [])
 
 // A faint glow in the middle so the arrow has some air around it.
@@ -65,7 +65,7 @@ ctx.setLineCap(.round)
 ctx.setLineJoin(.round)
 ctx.setLineWidth(6)
 ctx.setStrokeColor(color(0xFFFFFF, 0.9))
-ctx.setShadow(offset: .zero, blur: 14, color: color(0xBFE6FF, 0.7))
+ctx.setShadow(offset: .zero, blur: 14, color: color(0xFFE2B8, 0.6))
 ctx.addPath(arrow)
 ctx.strokePath()
 ctx.restoreGState()

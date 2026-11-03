@@ -56,7 +56,7 @@ func renderHosted<V: View>(_ view: V) -> NSImage {
 struct Backdrop: View {
     var body: some View {
         LinearGradient(
-            colors: [Color(hex: 0x4A3CC8), Color(hex: 0x5A8CEE)],
+            colors: [Color(hex: 0xE4501C), Color(hex: 0xF5A21F)],
             startPoint: .bottomLeading, endPoint: .topTrailing)
     }
 }
