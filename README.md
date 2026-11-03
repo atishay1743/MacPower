@@ -9,6 +9,16 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/atishay1743/MacPower/releases/latest/download/MacPower.dmg"><b>Download for macOS</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/atishay1743/MacPower/releases/latest">Release notes</a>
+  <br><br>
+  <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue"></a>
+</p>
+
+<p align="center">
   <img src="docs/hero.png" alt="MacPower dropdown while plugged in and on battery" width="720">
 </p>
 
@@ -16,11 +26,13 @@ macOS has no built-in live wattage display, so MacPower reads it from IOKit and 
 
 - **Plugged in:** the menu bar shows live charger draw, e.g. `18W`
 - **Unplugged:** it shows what the machine is pulling from the battery, as a negative, e.g. `-9W`
-- **Click it:** the same figure in large type, plus the system vs. battery split, battery percentage and state. This works in both states, so the dropdown shows the negative draw when you're on battery.
+- **Click it:** the same figure in large type (e.g. `-9.4 W`, *Drawing from battery*), plus the system vs. battery split, battery percentage and state. The dropdown shows the same information whether you're plugged in or not.
+
+Requires macOS 14 or later on a Mac with a battery.
 
 ## Install
 
-1. Download `MacPower.dmg` from the [latest release](../../releases/latest), open it, and drag **MacPower** onto **Applications**.
+1. Download `MacPower.dmg` from the [latest release](https://github.com/atishay1743/MacPower/releases/latest), open it, and drag **MacPower** onto **Applications**.
 
    ![Drag MacPower to Applications](docs/install-1-drag.png)
 
@@ -45,6 +57,20 @@ The wattage should appear in your menu bar right away. Turn on **Open at Login**
 If you would rather not bypass Gatekeeper at all, [build it from source](#build-from-source). A copy you build yourself is never quarantined.
 
 > The dropdown image at the top is the app's real view rendered with sample readings. The install images are simplified illustrations; the exact wording and layout of the macOS dialogs vary slightly between versions.
+
+## Uninstall
+
+Quit MacPower from the dropdown, turn off **Open at Login** first if you enabled it, then drag `MacPower.app` from Applications to the Trash. It keeps no other files.
+
+## Troubleshooting
+
+| Problem | What to try |
+| --- | --- |
+| *“MacPower” is damaged and can't be opened* | The download is intact; this is the quarantine flag. Run the `xattr` command above. |
+| No *Open Anyway* button in Privacy & Security | Try opening the app again, then reopen the Security section. The button expires after about an hour. |
+| *Open at Login* won't turn on | Move `MacPower.app` into `/Applications` first, then toggle it again. |
+| Menu bar shows `--` | The Mac reports no battery data. Desktop Macs have no battery to read. |
+| A reading looks wrong | Open an issue with the output of `ioreg -r -c AppleSmartBattery -w0` and your Mac model. |
 
 ## Build from source
 
@@ -78,7 +104,8 @@ All values come from the `AppleSmartBattery` IORegistry entry. No `sudo`, no `po
 
 | Shown as | Source | Units |
 | --- | --- | --- |
-| Menu bar / adapter draw | `PowerTelemetryData.SystemPowerIn` | mW |
+| Menu bar and headline, plugged in | `PowerTelemetryData.SystemPowerIn` | mW |
+| Menu bar and headline, on battery | `PowerTelemetryData.SystemLoad`, shown negative | mW |
 | System | `PowerTelemetryData.SystemLoad` | mW |
 | Battery | `PowerTelemetryData.BatteryPower` | mW, negative when draining |
 | Adapter rating | `AdapterDetails.Watts` | W |
@@ -104,6 +131,7 @@ ioreg -r -c AppleSmartBattery -w0 | grep -o '"SystemPowerIn"=[0-9]*'
 - `Sources/MacPower/StatusMenuView.swift` — dropdown panel and login item toggle
 - `Resources/Info.plist` — `LSUIElement` so there is no Dock icon
 - `scripts/` — generators for the app icon, DMG background and README images
+- `docs/` — images used by this README
 - `build.sh` — compiles and assembles the `.app` bundle
 - `create-dmg.sh` — packages the app into a DMG
 
@@ -111,7 +139,7 @@ Built with SwiftPM rather than an Xcode project so it builds with just the Comma
 
 ## Requirements
 
-macOS 14 or later, on a Mac with a battery. Apple silicon reports the full telemetry set; Intel Macs fall back to battery voltage and current.
+macOS 14 or later, on a Mac with a battery. Apple silicon reports the full telemetry set; Intel Macs fall back to battery voltage and current. Building from source needs the Xcode Command Line Tools.
 
 ## Contributing
 
