@@ -88,18 +88,19 @@ ctx.saveGState()
 ctx.addPath(tilePath)
 ctx.clip()
 
-// Base: warm amber at the bottom-left rising to lime at the top-right.
+// Base: deep indigo at the bottom-left rising to electric blue at the top-right.
+// A dark tile gives the bright glass bolt something to stand out against.
 ctx.drawLinearGradient(
-    gradient([(0xFF4D1C, 1, 0), (0xFF8A00, 1, 0.5), (0xFFD21F, 1, 1)]),
+    gradient([(0x1A0B5E, 1, 0), (0x3A2BD8, 1, 0.5), (0x2F9BFF, 1, 1)]),
     start: CGPoint(x: tileRect.minX, y: tileRect.minY),
     end: CGPoint(x: tileRect.maxX, y: tileRect.maxY),
     options: [])
 
 // Soft light pool behind the bolt, so the glass has something to refract.
 ctx.drawRadialGradient(
-    gradient([(0xFFFFFF, 0.55, 0), (0xFFFFFF, 0, 1)]),
-    startCenter: CGPoint(x: size * 0.5, y: size * 0.56), startRadius: 0,
-    endCenter: CGPoint(x: size * 0.5, y: size * 0.56), endRadius: 330,
+    gradient([(0x7FE3FF, 0.45, 0), (0x7FE3FF, 0, 1)]),
+    startCenter: CGPoint(x: size * 0.5, y: size * 0.52), startRadius: 0,
+    endCenter: CGPoint(x: size * 0.5, y: size * 0.52), endRadius: 380,
     options: [])
 
 // Top sheen
@@ -123,7 +124,17 @@ everything.addRect(CGRect(x: 0, y: 0, width: size, height: size))
 everything.addPath(boltPath)
 ctx.addPath(everything)
 ctx.clip(using: .evenOdd)
-ctx.setShadow(offset: CGSize(width: 0, height: -26), blur: 46, color: color(0x8A1F00, 0.5))
+ctx.setShadow(offset: CGSize(width: 0, height: -26), blur: 46, color: color(0x0A0640, 0.55))
+ctx.addPath(boltPath)
+ctx.setFillColor(color(0xFFFFFF))
+ctx.fillPath()
+ctx.restoreGState()
+
+// Halo: a soft cyan glow around the bolt so it lifts off the tile.
+ctx.saveGState()
+ctx.addPath(everything)
+ctx.clip(using: .evenOdd)
+ctx.setShadow(offset: .zero, blur: 90, color: color(0x9FF0FF, 0.85))
 ctx.addPath(boltPath)
 ctx.setFillColor(color(0xFFFFFF))
 ctx.fillPath()
@@ -134,14 +145,14 @@ ctx.saveGState()
 ctx.addPath(boltPath)
 ctx.clip()
 ctx.drawLinearGradient(
-    gradient([(0xFFFFFF, 0.78, 0), (0xFFFFFF, 0.42, 0.5), (0xFFFFFF, 0.22, 1)]),
+    gradient([(0xFFFFFF, 0.98, 0), (0xFFFFFF, 0.92, 0.5), (0xE4F6FF, 0.78, 1)]),
     start: CGPoint(x: boltRect.midX, y: boltRect.maxY),
     end: CGPoint(x: boltRect.midX, y: boltRect.minY),
     options: [])
 
 // Inner shadow hugging the lower edge: sells the thickness of the glass.
 ctx.saveGState()
-ctx.setShadow(offset: CGSize(width: -6, height: 14), blur: 22, color: color(0xA02800, 0.45))
+ctx.setShadow(offset: CGSize(width: -6, height: 14), blur: 22, color: color(0x2A5AE0, 0.28))
 ctx.setFillColor(color(0x000000))
 ctx.addPath(everything)
 ctx.fillPath(using: .evenOdd)

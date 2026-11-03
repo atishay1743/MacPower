@@ -1,0 +1,1 @@
+../../../../Sources/MacPower/StatusMenuView.swift

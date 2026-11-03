@@ -49,6 +49,12 @@ final class PowerMonitor: ObservableObject {
         self.timer = timer
     }
 
+    /// A monitor frozen on one reading, with no polling. For previews and
+    /// rendering docs images.
+    init(fixed snapshot: PowerSnapshot) {
+        self.snapshot = snapshot
+    }
+
     deinit {
         timer?.invalidate()
     }

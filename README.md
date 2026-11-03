@@ -8,6 +8,10 @@
   A tiny menu bar app that shows how many watts your MacBook is pulling, live.
 </p>
 
+<p align="center">
+  <img src="docs/hero.png" alt="MacPower dropdown while plugged in and on battery" width="720">
+</p>
+
 macOS has no built-in live wattage display, so MacPower reads it from IOKit and puts it in the menu bar. The number is always readable at a glance, no clicking needed.
 
 - **Plugged in:** the menu bar shows live charger draw, e.g. `18W`
@@ -16,16 +20,31 @@ macOS has no built-in live wattage display, so MacPower reads it from IOKit and 
 
 ## Install
 
-Download `MacPower.dmg` from the [latest release](../../releases/latest), open it, and drag MacPower to **Applications**.
+1. Download `MacPower.dmg` from the [latest release](../../releases/latest), open it, and drag **MacPower** onto **Applications**.
 
-MacPower is not yet signed with an Apple Developer ID or notarized, so macOS will block it the first time. Either:
+   ![Drag MacPower to Applications](docs/install-1-drag.png)
 
-- open it, dismiss the warning, then go to **System Settings → Privacy & Security** and click **Open Anyway**, or
-- run `xattr -dr com.apple.quarantine /Applications/MacPower.app` once.
+2. Open MacPower from Applications. macOS will refuse the first time with *“MacPower” Not Opened*. This is expected: the app is not signed with an Apple Developer ID or notarized yet (that costs $99/year), so Gatekeeper blocks any app downloaded outside the App Store that lacks it. Click **Done**.
 
-Turn on **Open at Login** in the dropdown to keep it running. The login item needs a stable location, so move the app to `/Applications` before enabling it.
+   ![macOS blocks the first launch](docs/install-2-blocked.png)
 
-Quit from the dropdown, or with Cmd+Q while it is open.
+3. Open **System Settings → Privacy & Security**, scroll to **Security**, and click **Open Anyway** next to *“MacPower” was blocked to protect your Mac*. Confirm with your password or Touch ID, then click **Open** in the final prompt. You only need to do this once.
+
+   ![Open Anyway in Privacy & Security](docs/install-3-open-anyway.png)
+
+   The *Open Anyway* button only shows for about an hour after the failed launch. If it is gone, open the app once more to bring it back.
+
+Prefer the terminal? One command skips steps 2 and 3:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/MacPower.app
+```
+
+The wattage should appear in your menu bar right away. Turn on **Open at Login** in the dropdown to keep it running; the login item needs a stable location, so move the app to `/Applications` before enabling it. Quit from the dropdown, or with Cmd+Q while it is open.
+
+If you would rather not bypass Gatekeeper at all, [build it from source](#build-from-source). A copy you build yourself is never quarantined.
+
+> The dropdown image at the top is the app's real view rendered with sample readings. The install images are simplified illustrations; the exact wording and layout of the macOS dialogs vary slightly between versions.
 
 ## Build from source
 
@@ -45,10 +64,12 @@ open MacPower.dmg
 
 The DMG contains MacPower and an Applications shortcut for drag-and-drop installation. It is ad-hoc signed; to distribute your own build without the warning above you need a Developer ID signature and notarization.
 
-To regenerate the app icon (a flat, Liquid Glass–style tile drawn with CoreGraphics):
+To regenerate the generated assets (all drawn in code, no design files):
 
 ```bash
-swift scripts/make-icon.swift
+swift scripts/make-icon.swift            # app icon: flat, Liquid Glass–style tile
+swift scripts/make-dmg-background.swift  # installer window gradient and arrow
+swift run --package-path scripts/render-docs render-docs   # README images in docs/
 ```
 
 ## Where the numbers come from
@@ -82,7 +103,7 @@ ioreg -r -c AppleSmartBattery -w0 | grep -o '"SystemPowerIn"=[0-9]*'
 - `Sources/MacPower/MacPowerApp.swift` — `MenuBarExtra` scene
 - `Sources/MacPower/StatusMenuView.swift` — dropdown panel and login item toggle
 - `Resources/Info.plist` — `LSUIElement` so there is no Dock icon
-- `scripts/make-icon.swift` — generates the app icon
+- `scripts/` — generators for the app icon, DMG background and README images
 - `build.sh` — compiles and assembles the `.app` bundle
 - `create-dmg.sh` — packages the app into a DMG
 
