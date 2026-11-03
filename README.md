@@ -104,33 +104,39 @@ swift run --package-path scripts/render-docs render-docs   # README images in do
 
 ## Where the numbers come from
 
-All values come from the `AppleSmartBattery` IORegistry entry. No `sudo`, no `powermetrics`, no polling of shell commands.
+Live wattage is read from the System Management Controller (SMC), the chip the numbers originate from. No `sudo`, no `powermetrics`, no shell commands.
 
 | Shown as | Source | Units |
 | --- | --- | --- |
-| Menu bar and headline, plugged in | `PowerTelemetryData.SystemPowerIn` | mW |
-| Menu bar and headline, on battery | `PowerTelemetryData.SystemLoad`, shown negative | mW |
-| System | `PowerTelemetryData.SystemLoad` | mW |
-| Battery | `PowerTelemetryData.BatteryPower` | mW, negative when draining |
+| Menu bar and headline, plugged in | SMC `PDTR` (power in from the charger) | W |
+| Menu bar and headline, on battery | SMC `PSTR` (whole-system power), shown negative | W |
+| System | SMC `PSTR` | W |
+| Battery | SMC `PPBR`, negative when draining | W |
+| Plugged in or not | `IOPSCopyPowerSourcesInfo`, plus a change notification | |
 | Adapter rating | `AdapterDetails.Watts` | W |
 | Battery percent | `CurrentCapacity` | % |
 
-These are internally consistent: `SystemPowerIn = SystemLoad + BatteryPower`.
+### Why not the `AppleSmartBattery` registry values?
 
-Two notes on why it reads these specific keys:
+The registry entry (`PowerTelemetryData`, `Voltage`, `Amperage`) is a cache the system refreshes only every 20 to 60 seconds. Right after you plug in or unplug, it still holds the old state, so the app showed `0W` on plug-in and the last on-battery reading after unplugging. Polling it faster does not help; the data is not there yet.
+
+So the app does three things:
+
+- Reads live values from the SMC.
+- Listens for the system's power-source change notification and re-reads immediately, then again at 0.25, 0.5, 1 and 2 seconds while the sensors settle.
+- Takes the plug state from the real-time power-source API, not the registry, and shows `--` rather than a number that cannot be right for that state (for example `0W` on a connected charger).
+
+The registry is only a fallback on Macs without these SMC sensors, and each value is used only if it fits the current plug state. On those Macs the lag can still appear.
+
+Two more notes:
 
 - The **adapter rating** (e.g. `20W`) is the brick's maximum, not what you are using. The menu bar shows real draw instead.
-- Battery `Voltage x InstantAmperage` is a tempting shortcut but wrong twice over: it reads ~0 when the battery is full even though the Mac is still pulling wall power, and `InstantAmperage` swings negative mid-charge. It is only used as a fallback on older Macs that do not report `PowerTelemetryData`.
-
-You can cross-check any reading with:
-
-```bash
-ioreg -r -c AppleSmartBattery -w0 | grep -o '"SystemPowerIn"=[0-9]*'
-```
+- Battery `Voltage x InstantAmperage` reads ~0 when the battery is full even though the Mac is still pulling wall power, and `InstantAmperage` swings negative mid-charge, so it is not used for the adapter figure.
 
 ## Layout
 
-- `Sources/MacPower/PowerMonitor.swift` — IOKit reader, polls once per second
+- `Sources/MacPower/PowerMonitor.swift` — polls once per second and on every plug or unplug event
+- `Sources/MacPower/SMCReader.swift` — live power sensors from the SMC
 - `Sources/MacPower/MacPowerApp.swift` — `MenuBarExtra` scene
 - `Sources/MacPower/StatusMenuView.swift` — dropdown panel and login item toggle
 - `Resources/Info.plist` — `LSUIElement` so there is no Dock icon
