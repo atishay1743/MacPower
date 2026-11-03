@@ -1,0 +1,6 @@
+.build/
+MacPower.app/
+MacPower.dmg
+.DS_Store
+.swiftpm/
+Package.resolved
