@@ -1,7 +1,7 @@
 #!/usr/bin/env swift
 // Generates Resources/AppIcon.png (1024x1024) and Resources/AppIcon.icns.
 //
-// A flat, Liquid Glass–style icon: a vivid gradient tile with a single
+// A flat, Liquid Glass–style icon: a graphite tile with a single
 // frosted-glass bolt. Run from the repo root:  swift scripts/make-icon.swift
 import AppKit
 import CoreGraphics
@@ -88,16 +88,16 @@ ctx.saveGState()
 ctx.addPath(tilePath)
 ctx.clip()
 
-// Base: hot orange at the bottom-left rising to amber at the top-right.
+// Base: near-black graphite with a soft directional highlight.
 ctx.drawLinearGradient(
-    gradient([(0xFF4D1C, 1, 0), (0xFF8A00, 1, 0.5), (0xFFD21F, 1, 1)]),
+    gradient([(0x08090A, 1, 0), (0x131416, 1, 0.5), (0x252629, 1, 1)]),
     start: CGPoint(x: tileRect.minX, y: tileRect.minY),
     end: CGPoint(x: tileRect.maxX, y: tileRect.maxY),
     options: [])
 
 // Top sheen
 ctx.drawLinearGradient(
-    gradient([(0xFFFFFF, 0.28, 0), (0xFFFFFF, 0, 1)]),
+    gradient([(0xFFFFFF, 0.08, 0), (0xFFFFFF, 0, 1)]),
     start: CGPoint(x: size / 2, y: tileRect.maxY),
     end: CGPoint(x: size / 2, y: tileRect.midY),
     options: [])
@@ -116,7 +116,7 @@ everything.addRect(CGRect(x: 0, y: 0, width: size, height: size))
 everything.addPath(boltPath)
 ctx.addPath(everything)
 ctx.clip(using: .evenOdd)
-ctx.setShadow(offset: CGSize(width: 0, height: -26), blur: 36, color: color(0x7A1800, 0.7))
+ctx.setShadow(offset: CGSize(width: 0, height: -26), blur: 36, color: color(0x512F20, 0.7))
 ctx.addPath(boltPath)
 ctx.setFillColor(color(0xFFFFFF))
 ctx.fillPath()
@@ -127,14 +127,14 @@ ctx.saveGState()
 ctx.addPath(boltPath)
 ctx.clip()
 ctx.drawLinearGradient(
-    gradient([(0xFFFFFF, 0.92, 0), (0xFFFFFF, 0.58, 0.5), (0xFFFFFF, 0.34, 1)]),
+    gradient([(0xFFFFFF, 0.92, 0), (0xFFFFFF, 0.82, 0.5), (0xFFFFFF, 0.66, 1)]),
     start: CGPoint(x: boltRect.midX, y: boltRect.maxY),
     end: CGPoint(x: boltRect.midX, y: boltRect.minY),
     options: [])
 
 // Inner shadow hugging the lower edge: sells the thickness of the glass.
 ctx.saveGState()
-ctx.setShadow(offset: CGSize(width: -6, height: 14), blur: 22, color: color(0xA02800, 0.5))
+ctx.setShadow(offset: CGSize(width: -6, height: 14), blur: 22, color: color(0x5E4135, 0.5))
 ctx.setFillColor(color(0x000000))
 ctx.addPath(everything)
 ctx.fillPath(using: .evenOdd)
@@ -206,5 +206,6 @@ task.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
 task.arguments = ["-c", "icns", iconset.path, "-o", resources.appendingPathComponent("AppIcon.icns").path]
 try! task.run()
 task.waitUntilExit()
+precondition(task.terminationStatus == 0, "iconutil failed")
 try? fm.removeItem(at: iconset)
 print("Wrote Resources/AppIcon.png and Resources/AppIcon.icns")

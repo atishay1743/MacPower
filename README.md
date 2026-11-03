@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/icon.png" width="128" alt="MacPower icon">
+  <img src="docs/icon.png" width="128" alt="MacPower’s silver lightning bolt on a graphite tile">
 </p>
 
 <h1 align="center">MacPower</h1>

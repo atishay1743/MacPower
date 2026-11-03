@@ -39,9 +39,9 @@ let ctx = CGContext(
     bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
 ctx.scaleBy(x: scale, y: scale)
 
-// Base gradient: orange (bottom-left) to amber (top-right), like the icon.
+// Base gradient: graphite, lifted through the center for the Finder labels.
 ctx.drawLinearGradient(
-    gradient([(0xD4491A, 1, 0), (0xDB6A1C, 1, 0.5), (0xE08F24, 1, 1)]),
+    gradient([(0x393B40, 1, 0), (0x686B70, 1, 0.5), (0x4C5056, 1, 1)]),
     start: .zero, end: CGPoint(x: points.width, y: points.height), options: [])
 
 // A faint glow in the middle so the arrow has some air around it.
@@ -65,7 +65,7 @@ ctx.setLineCap(.round)
 ctx.setLineJoin(.round)
 ctx.setLineWidth(6)
 ctx.setStrokeColor(color(0xFFFFFF, 0.9))
-ctx.setShadow(offset: .zero, blur: 14, color: color(0xFFE2B8, 0.6))
+ctx.setShadow(offset: .zero, blur: 14, color: color(0xFFFFFF, 0.15))
 ctx.addPath(arrow)
 ctx.strokePath()
 ctx.restoreGState()

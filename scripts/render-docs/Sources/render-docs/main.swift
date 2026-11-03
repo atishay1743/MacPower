@@ -140,11 +140,12 @@ struct StepFrame<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         ZStack(alignment: .topLeading) {
-            Backdrop()
+            LinearGradient(colors: [Color(hex: 0x393B40), Color(hex: 0x686B70), Color(hex: 0x4C5056)],
+                           startPoint: .bottomLeading, endPoint: .topTrailing)
             content.frame(maxWidth: .infinity, maxHeight: .infinity)
             Text("\(number)")
                 .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundStyle(Color(hex: 0xC23A0E))
+                .foregroundStyle(Color(hex: 0x292B2F))
                 .frame(width: 34, height: 34)
                 .background(Circle().fill(.white))
                 .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
@@ -294,8 +295,10 @@ func renderMenuBar() {
 }
 
 MainActor.assumeIsolated {
-    renderHero()
-    renderMenuBar()
+    if !CommandLine.arguments.contains("--install-only") {
+        renderHero()
+        renderMenuBar()
+    }
     render(DragStep(), name: "install-1-drag.png")
     render(BlockedStep(), name: "install-2-blocked.png")
     render(OpenAnywayStep(), name: "install-3-open-anyway.png")
