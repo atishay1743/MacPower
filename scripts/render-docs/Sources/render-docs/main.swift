@@ -136,11 +136,19 @@ func renderHero() {
 // MARK: - Install steps
 
 struct StepFrame<Content: View>: View {
+    let number: Int
     @ViewBuilder var content: Content
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             Backdrop()
-            content
+            content.frame(maxWidth: .infinity, maxHeight: .infinity)
+            Text("\(number)")
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(hex: 0xC23A0E))
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(.white))
+                .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
+                .padding(18)
         }
         .frame(width: 720, height: 340)
     }
@@ -148,7 +156,7 @@ struct StepFrame<Content: View>: View {
 
 struct DragStep: View {
     var body: some View {
-        StepFrame {
+        StepFrame(number: 1) {
             HStack(spacing: 64) {
                 VStack(spacing: 10) {
                     Image(nsImage: appIcon).resizable().frame(width: 116, height: 116)
@@ -168,7 +176,7 @@ struct DragStep: View {
 
 struct BlockedStep: View {
     var body: some View {
-        StepFrame {
+        StepFrame(number: 2) {
             VStack(spacing: 14) {
                 Image(nsImage: appIcon).resizable().frame(width: 64, height: 64)
                 Text("“MacPower” Not Opened")
@@ -202,7 +210,7 @@ struct BlockedStep: View {
 
 struct OpenAnywayStep: View {
     var body: some View {
-        StepFrame {
+        StepFrame(number: 3) {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Privacy & Security")
                     .font(.system(size: 17, weight: .bold))
@@ -236,8 +244,58 @@ struct OpenAnywayStep: View {
     }
 }
 
+
+// MARK: - Menu bar strip
+
+struct MenuBarRow: View {
+    let value: String
+    let caption: String
+    var body: some View {
+        HStack(spacing: 16) {
+            Text(caption)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 92, alignment: .leading)
+            HStack(spacing: 14) {
+                Image(systemName: "applelogo")
+                Text("Finder").fontWeight(.semibold)
+                Text("File")
+                Text("Edit")
+                Spacer(minLength: 0)
+                Text(value)
+                    .monospacedDigit()
+                    .padding(.horizontal, 8).padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.22)))
+                Image(systemName: "wifi")
+                Image(systemName: "battery.75percent")
+                Text("Tue 9:41")
+            }
+            .font(.system(size: 13))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .frame(width: 470, height: 30)
+            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.black.opacity(0.42)))
+        }
+    }
+}
+
+@MainActor
+func renderMenuBar() {
+    render(
+        ZStack {
+            Backdrop()
+            VStack(alignment: .leading, spacing: 18) {
+                MenuBarRow(value: "18W", caption: "Plugged in")
+                MenuBarRow(value: "-9W", caption: "On battery")
+            }
+        }
+        .frame(width: 720, height: 150),
+        name: "menubar.png")
+}
+
 MainActor.assumeIsolated {
     renderHero()
+    renderMenuBar()
     render(DragStep(), name: "install-1-drag.png")
     render(BlockedStep(), name: "install-2-blocked.png")
     render(OpenAnywayStep(), name: "install-3-open-anyway.png")

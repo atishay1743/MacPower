@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/hero.png" alt="MacPower dropdown while plugged in and on battery" width="720">
+  <img src="docs/menubar.png" alt="MacPower in the menu bar: 18W while plugged in, -9W on battery" width="720">
 </p>
 
 macOS has no built-in live wattage display, so MacPower reads it from IOKit and puts it in the menu bar. The number is always readable at a glance, no clicking needed.
@@ -27,6 +27,10 @@ macOS has no built-in live wattage display, so MacPower reads it from IOKit and 
 - **Plugged in:** the menu bar shows live charger draw, e.g. `18W`
 - **Unplugged:** it shows what the machine is pulling from the battery, as a negative, e.g. `-9W`
 - **Click it:** the same figure in large type (e.g. `-9.4 W`, *Drawing from battery*), plus the system vs. battery split, battery percentage and state. The dropdown shows the same information whether you're plugged in or not.
+
+<p align="center">
+  <img src="docs/hero.png" alt="MacPower dropdown while plugged in and on battery" width="720">
+</p>
 
 Requires macOS 14 or later on a Mac with a battery.
 
@@ -56,7 +60,7 @@ The wattage should appear in your menu bar right away. Turn on **Open at Login**
 
 If you would rather not bypass Gatekeeper at all, [build it from source](#build-from-source). A copy you build yourself is never quarantined.
 
-> The dropdown image at the top is the app's real view rendered with sample readings. The install images are simplified illustrations; the exact wording and layout of the macOS dialogs vary slightly between versions.
+> The dropdown image is the app's real view rendered with sample readings. The menu bar and install images are simplified illustrations; the exact wording and layout of the macOS dialogs vary slightly between versions.
 
 ## Uninstall
 
