@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import IOKit
 import IOKit.ps
@@ -21,6 +22,12 @@ struct PowerSnapshot: Equatable {
     var systemWatts: Double?
     var batteryWatts: Double?
 
+    /// Overall CPU utilization across all cores, from 0 to 100.
+    var cpuPercent: Double?
+    /// Resident app memory, wired memory and compressed memory, excluding caches.
+    var memoryUsedBytes: UInt64?
+    var memoryTotalBytes: UInt64?
+
     /// Always-visible menu bar text: charger draw when plugged in, otherwise
     /// what the machine is pulling from the battery, shown as negative.
     /// A missing value shows "--" rather than a number from the wrong state.
@@ -34,18 +41,22 @@ struct PowerSnapshot: Equatable {
 }
 
 final class PowerMonitor: ObservableObject {
+    static let refreshInterval: TimeInterval = 5
+
     @Published private(set) var snapshot = PowerSnapshot()
 
     private let smc: SMCReader?
     private var timer: Timer?
     private var powerSourceLoop: CFRunLoopSource?
+    private var previousCPUTicks: [UInt32]?
 
     init() {
         smc = SMCReader()
         refresh()
-        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: Self.refreshInterval, repeats: true) { [weak self] _ in
             self?.refresh()
         }
+        timer.tolerance = 0.5
         // Common mode keeps readings live while the menu bar panel is open.
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
@@ -74,8 +85,8 @@ final class PowerMonitor: ObservableObject {
     }
 
     /// The system tells us the instant a charger is plugged or unplugged, so
-    /// react then instead of waiting for the next tick. The sensors need a
-    /// moment to settle after the switch, so follow up with a few quick reads.
+    /// react then instead of waiting for the next tick. Other power-source
+    /// notifications use the regular cadence so they cannot cause flicker.
     private func observePowerSourceChanges() {
         let callback: IOPowerSourceCallbackType = { context in
             guard let context else { return }
@@ -88,16 +99,18 @@ final class PowerMonitor: ObservableObject {
     }
 
     private func powerSourceChanged() {
+        guard let isPluggedIn = Self.isOnExternalPower(),
+              isPluggedIn != snapshot.isPluggedIn else { return }
         refresh()
-        for delay in [0.25, 0.5, 1.0, 2.0] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                self?.refresh()
-            }
-        }
+        // Let sensors settle before the next read, without a burst of updates.
+        timer?.fireDate = Date(timeIntervalSinceNow: Self.refreshInterval)
     }
 
     private func read() -> PowerSnapshot {
         var snapshot = PowerSnapshot()
+        snapshot.cpuPercent = readCPUPercent()
+        snapshot.memoryTotalBytes = ProcessInfo.processInfo.physicalMemory
+        snapshot.memoryUsedBytes = Self.readMemoryUsedBytes()
         guard let properties = Self.batteryProperties() else { return snapshot }
 
         snapshot.hasBattery = (properties["BatteryInstalled"] as? Bool) ?? true
@@ -124,6 +137,47 @@ final class PowerMonitor: ObservableObject {
         }
 
         return snapshot
+    }
+
+    /// Mach's cumulative ticks cover all cores. Use the change since the last
+    /// sample, rather than the lifetime average or a per-process percentage.
+    private func readCPUPercent() -> Double? {
+        let host = mach_host_self()
+        defer { mach_port_deallocate(mach_task_self_, host) }
+        var info = host_cpu_load_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                host_statistics(host, HOST_CPU_LOAD_INFO, $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return nil }
+        let ticks = [info.cpu_ticks.0, info.cpu_ticks.1, info.cpu_ticks.2, info.cpu_ticks.3]
+        defer { previousCPUTicks = ticks }
+        guard let previousCPUTicks else { return nil }
+        // The kernel exports 32-bit counters, which can wrap on long uptimes.
+        let delta = zip(ticks, previousCPUTicks).map { UInt64($0 &- $1) }
+        let total = delta.reduce(0, +)
+        guard total > 0 else { return snapshot.cpuPercent }
+        let busy = total - delta[Int(CPU_STATE_IDLE)]
+        return Double(busy) / Double(total) * 100
+    }
+
+    private static func readMemoryUsedBytes() -> UInt64? {
+        let host = mach_host_self()
+        defer { mach_port_deallocate(mach_task_self_, host) }
+        var info = vm_statistics64_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                host_statistics64(host, HOST_VM_INFO64, $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return nil }
+        // Purgeable anonymous pages can be reclaimed and are counted as cache.
+        let appPages = UInt64(info.internal_page_count) - min(UInt64(info.internal_page_count), UInt64(info.purgeable_count))
+        let usedPages = appPages + UInt64(info.wire_count) + UInt64(info.compressor_page_count)
+        return min(usedPages * UInt64(vm_kernel_page_size), ProcessInfo.processInfo.physicalMemory)
     }
 
     /// Real-time path, from SMC sensors.
