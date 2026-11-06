@@ -85,12 +85,18 @@ plugged.adapterWatts = 18.3
 plugged.adapterRatedWatts = 20
 plugged.systemWatts = 7.2
 plugged.batteryWatts = 11.1
+plugged.cpuPercent = 12.4
+plugged.memoryUsedBytes = 10_200_547_328
+plugged.memoryTotalBytes = 17_179_869_184
 
 var unplugged = PowerSnapshot()
 unplugged.hasBattery = true
 unplugged.batteryPercent = 71
 unplugged.systemWatts = 9.4
 unplugged.batteryWatts = -9.4
+unplugged.cpuPercent = 8.7
+unplugged.memoryUsedBytes = 9_878_424_781
+unplugged.memoryTotalBytes = 17_179_869_184
 
 // MARK: - Hero: the dropdown in both states
 
@@ -129,7 +135,7 @@ func renderHero() {
                 Column(title: "On battery", menuBar: "-9W", panel: unpluggedPanel)
             }
         }
-        .frame(width: 720, height: 400),
+        .frame(width: 720, height: 460),
         name: "hero.png")
 }
 

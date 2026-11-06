@@ -24,6 +24,15 @@ struct StatusMenuView: View {
 
             Divider()
 
+            VStack(alignment: .leading, spacing: 6) {
+                usageDetail("CPU", value: snapshot.cpuPercent.map { String(format: "%.1f%%", $0) } ?? "--")
+                    .help("Overall CPU usage across all cores, averaged since the previous reading.")
+                usageDetail("RAM", value: memoryUsage)
+                    .help("Memory used by apps, wired memory and compressed memory, excluding caches.")
+            }
+
+            Divider()
+
             HStack {
                 Toggle("Open at Login", isOn: $openAtLogin)
                     .toggleStyle(.switch)
@@ -71,7 +80,7 @@ struct StatusMenuView: View {
             } else if snapshot.isPluggedIn {
                 Text(format(snapshot.adapterWatts) ?? "--")
                     .font(.system(size: 30, weight: .semibold, design: .rounded))
-                    .contentTransition(.numericText())
+                    .monospacedDigit()
                 Text(adapterCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -80,7 +89,7 @@ struct StatusMenuView: View {
                 // battery, shown negative.
                 Text(format(snapshot.systemWatts.map { -abs($0) }) ?? "--")
                     .font(.system(size: 30, weight: .semibold, design: .rounded))
-                    .contentTransition(.numericText())
+                    .monospacedDigit()
                 Text("Drawing from battery")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -116,10 +125,20 @@ struct StatusMenuView: View {
     }
 
     private func detail(_ label: String, watts: Double?, signed: Bool = false) -> some View {
+        usageDetail(label, value: format(watts, signed: signed) ?? "--")
+    }
+
+    private var memoryUsage: String {
+        guard let used = snapshot.memoryUsedBytes, let total = snapshot.memoryTotalBytes else { return "--" }
+        let gigabyte = 1_073_741_824.0
+        return String(format: "%.1f / %.0f GB", Double(used) / gigabyte, Double(total) / gigabyte)
+    }
+
+    private func usageDetail(_ label: String, value: String) -> some View {
         HStack(spacing: 4) {
             Text(label)
             Spacer()
-            Text(format(watts, signed: signed) ?? "--")
+            Text(value)
                 .monospacedDigit()
         }
         .font(.callout)
