@@ -7,7 +7,7 @@ final class StatusPanel: NSPanel, NSWindowDelegate {
 
     init(content: StatusMenuView) {
         host = NSHostingController(rootView: content)
-        super.init(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+        super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         contentViewController = host
         delegate = self
         isOpaque = false
@@ -15,9 +15,10 @@ final class StatusPanel: NSPanel, NSWindowDelegate {
         hasShadow = true
         isMovable = false
         isFloatingPanel = true
-        hidesOnDeactivate = true
+        hidesOnDeactivate = false
         level = .popUpMenu
-        collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        // A status item can be opened while a different app owns the active Space.
+        collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications, .transient]
         isReleasedWhenClosed = false
     }
 

@@ -74,7 +74,6 @@ final class MacPowerDelegate: NSObject, NSApplicationDelegate {
         if panel.isVisible {
             panel.orderOut(nil)
         } else if panel.position(below: button, clickLocation: NSEvent.mouseLocation) {
-            NSApp.activate()
             panel.makeKeyAndOrderFront(nil)
         }
     }
