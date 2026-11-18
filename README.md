@@ -13,7 +13,7 @@
   &nbsp;·&nbsp;
   <a href="https://github.com/atishay1743/MacPower/releases/latest">Release notes</a>
   <br><br>
-  <a href="https://github.com/atishay1743/MacPower/releases/latest"><img alt="Version 1.1.0" src="https://img.shields.io/badge/version-1.1.0-blue"></a>
+  <a href="https://github.com/atishay1743/MacPower/releases/latest"><img alt="Version 1.2.0" src="https://img.shields.io/badge/version-1.2.0-blue"></a>
   <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue"></a>
@@ -23,12 +23,12 @@ macOS has no built-in live wattage display, so MacPower reads it from IOKit and 
 
 - **Plugged in:** the menu bar shows live charger draw, e.g. `18W`
 - **Unplugged:** it shows what the machine is pulling from the battery, as a negative, e.g. `-9W`
-- **Click it:** the same figure in large type (e.g. `-9.4 W`, *Drawing from battery*), plus the system vs. battery split, battery percentage and state, overall CPU usage, and RAM used out of total memory. The dropdown shows the same information whether you're plugged in or not.
+- **Click it:** the same figure in large type (e.g. `-9.4 W`, *Drawing from battery*), plus the system vs. battery split, battery percentage and state, overall CPU usage, and RAM used out of total memory. While actively charging, the dropdown also shows an estimated time to full when enough battery data is available.
 
 Readings refresh every five seconds to keep the numbers easy to follow. Plugging or unplugging the charger still updates the power state immediately.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="MacPower 1.1.0 showing power draw, CPU usage and RAM usage on a blue and violet macOS-style desktop" width="720">
+  <img src="docs/screenshot.png" alt="MacPower showing a battery charging at 64% with an estimated 1 hour and 25 minutes to full" width="640">
 </p>
 
 Requires macOS 14 or later on a Mac with a battery.
@@ -59,7 +59,7 @@ The wattage should appear in your menu bar right away. Turn on **Open at Login**
 
 If you would rather not bypass Gatekeeper at all, [build it from source](#build-from-source). A copy you build yourself is never quarantined.
 
-> The screenshot uses the app's real dropdown rendered with sample readings on an illustrated desktop. Install images are simplified illustrations; the exact wording and layout of the macOS dialogs vary slightly between versions.
+> The screenshot uses the app’s dropdown with sample readings. The install illustrations may differ slightly from the macOS dialogs on your Mac.
 
 ## Uninstall
 
@@ -113,7 +113,8 @@ Live wattage is read from the System Management Controller (SMC), the chip the n
 | Battery | SMC `PPBR`, negative when draining | W |
 | Plugged in or not | `IOPSCopyPowerSourcesInfo`, plus a change notification | |
 | Adapter rating | `AdapterDetails.Watts` | W |
-| Battery percent | `CurrentCapacity` | % |
+| Battery percent | `CurrentCapacity` relative to `MaxCapacity` | % |
+| Time to full | macOS estimate or remaining charge divided by averaged battery current | min |
 | CPU | Change in Mach `HOST_CPU_LOAD_INFO` busy ticks across all cores | % (0–100) |
 | RAM | Mach `HOST_VM_INFO64`: non-purgeable internal + wired + compressed pages; total from `physicalMemory` | GB (1024³ bytes) |
 
@@ -129,7 +130,7 @@ So the app does three things:
 - Listens for the system's power-source change notification and re-reads immediately when the charger is plugged or unplugged. The next reading follows five seconds later so the sensors have time to settle without a burst of updates.
 - Takes the plug state from the real-time power-source API, not the registry, and shows `--` rather than a number that cannot be right for that state (for example `0W` on a connected charger).
 
-The registry is only a fallback on Macs without these SMC sensors, and each value is used only if it fits the current plug state. On those Macs the lag can still appear.
+For live wattage, the registry is a fallback on Macs without these SMC sensors. MacPower also uses registry readings to estimate charging time when macOS has no estimate. This fallback assumes the current charge rate continues, so it can change as charging slows near full.
 
 Two more notes:
 

@@ -20,7 +20,16 @@ struct StatusMenuView: View {
                 }
             }
 
-            batteryLine
+            if snapshot.hasBattery {
+                VStack(spacing: 6) {
+                    batteryLine
+
+                    if let minutes = snapshot.minutesToFull {
+                        usageDetail("Time to full", value: chargeTime(minutes))
+                            .help("Estimated charging time. It can change as the charging rate changes.")
+                    }
+                }
+            }
 
             Divider()
 
@@ -107,7 +116,7 @@ struct StatusMenuView: View {
 
     @ViewBuilder
     private var batteryLine: some View {
-        if snapshot.hasBattery, let percent = snapshot.batteryPercent {
+        if let percent = snapshot.batteryPercent {
             HStack(spacing: 4) {
                 Text("Battery")
                 Spacer()
@@ -122,6 +131,16 @@ struct StatusMenuView: View {
         if snapshot.isCharging { return "Charging" }
         if snapshot.isFullyCharged { return "Charged" }
         return snapshot.isPluggedIn ? "On adapter" : "Discharging"
+    }
+
+    private func chargeTime(_ minutes: Int) -> String {
+        guard minutes > 0 else { return "<1 min" }
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.hour, .minute]
+        formatter.unitsStyle = .abbreviated
+        formatter.zeroFormattingBehavior = .dropAll
+        let duration = formatter.string(from: Double(minutes) * 60) ?? "\(minutes) min"
+        return "≈ \(duration)"
     }
 
     private func detail(_ label: String, watts: Double?, signed: Bool = false) -> some View {

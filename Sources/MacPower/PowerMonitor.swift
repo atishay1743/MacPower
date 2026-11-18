@@ -13,6 +13,7 @@ struct PowerSnapshot: Equatable {
     var isCharging = false
     var isFullyCharged = false
     var batteryPercent: Int?
+    var minutesToFull: Int?
 
     /// Live power drawn from the charger.
     var adapterWatts: Double?
@@ -113,11 +114,26 @@ final class PowerMonitor: ObservableObject {
         snapshot.memoryUsedBytes = Self.readMemoryUsedBytes()
         guard let properties = Self.batteryProperties() else { return snapshot }
 
+        let powerSources = IOPSCopyPowerSourcesInfo()?.takeRetainedValue()
         snapshot.hasBattery = (properties["BatteryInstalled"] as? Bool) ?? true
-        snapshot.isPluggedIn = Self.isOnExternalPower() ?? (properties["ExternalConnected"] as? Bool) ?? false
+        snapshot.isPluggedIn = powerSources.flatMap(Self.isOnExternalPower)
+            ?? (properties["ExternalConnected"] as? Bool) ?? false
         snapshot.isCharging = (properties["IsCharging"] as? Bool) ?? false
         snapshot.isFullyCharged = (properties["FullyCharged"] as? Bool) ?? false
-        snapshot.batteryPercent = (properties["CurrentCapacity"] as? NSNumber)?.intValue
+        if let current = properties["CurrentCapacity"] as? NSNumber {
+            // Some Intel Macs report capacity in mAh instead of percent.
+            let maximum = (properties["MaxCapacity"] as? NSNumber)?.doubleValue ?? 100
+            if maximum > 0 {
+                snapshot.batteryPercent = Int((min(max(current.doubleValue / maximum, 0), 1) * 100).rounded())
+            }
+        }
+
+        if snapshot.hasBattery, snapshot.isPluggedIn, snapshot.isCharging, !snapshot.isFullyCharged {
+            snapshot.minutesToFull = Self.minutesToFull(
+                systemEstimate: powerSources.flatMap(Self.systemMinutesToFull),
+                properties: properties
+            )
+        }
 
         if let adapter = properties["AdapterDetails"] as? [String: Any] {
             snapshot.adapterRatedWatts = (adapter["Watts"] as? NSNumber)?.intValue
@@ -230,9 +246,47 @@ final class PowerMonitor: ObservableObject {
     /// Whether the Mac is running on a charger right now. Unlike the battery
     /// registry entry, this is updated the moment the cable moves.
     private static func isOnExternalPower() -> Bool? {
-        guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-              let type = IOPSGetProvidingPowerSourceType(info)?.takeUnretainedValue() as String? else { return nil }
+        let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue()
+        return info.flatMap(Self.isOnExternalPower)
+    }
+
+    private static func isOnExternalPower(_ info: CFTypeRef) -> Bool? {
+        guard let type = IOPSGetProvidingPowerSourceType(info)?.takeUnretainedValue() as String? else { return nil }
         return type == kIOPSACPowerValue
+    }
+
+    private static func systemMinutesToFull(_ info: CFTypeRef) -> Int? {
+        guard let sources = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return nil }
+        for source in sources {
+            guard let description = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
+                  description[kIOPSTypeKey] as? String == kIOPSInternalBatteryType,
+                  description[kIOPSIsChargingKey] as? Bool == true else { continue }
+            return (description[kIOPSTimeToFullChargeKey] as? NSNumber)?.intValue
+        }
+        return nil
+    }
+
+    private static func minutesToFull(systemEstimate: Int?, properties: [String: Any]) -> Int? {
+        if let systemEstimate, systemEstimate >= 0 { return systemEstimate }
+
+        // Raw mAh values live inside BatteryData on newer macOS versions.
+        let batteryData = properties["BatteryData"] as? [String: Any]
+        let rawCurrent = milliValue(properties["AppleRawCurrentCapacity"] ?? batteryData?["AppleRawCurrentCapacity"])
+        let rawMaximum = milliValue(properties["AppleRawMaxCapacity"] ?? batteryData?["AppleRawMaxCapacity"])
+        let remaining: Double
+        if let rawCurrent, let rawMaximum, rawCurrent >= 0, rawMaximum > rawCurrent {
+            remaining = rawMaximum - rawCurrent
+        } else if let current = milliValue(properties["CurrentCapacity"]),
+                  let maximum = milliValue(properties["MaxCapacity"]), maximum > 100,
+                  current >= 0, maximum > current {
+            remaining = maximum - current
+        } else {
+            return nil
+        }
+
+        // Estimate at the averaged battery current to avoid swings from instant readings.
+        guard let milliamps = milliValue(properties["Amperage"]), milliamps > 0 else { return nil }
+        return Int(exactly: (remaining / milliamps * 60).rounded(.up))
     }
 
     private static func adapterWatts(telemetry: [String: Any]) -> Double? {
