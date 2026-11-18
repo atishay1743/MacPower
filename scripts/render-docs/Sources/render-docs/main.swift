@@ -79,9 +79,7 @@ struct Panel: View {
     let monitor: PowerMonitor
     var body: some View {
         StatusMenuView(monitor: monitor, onSettings: {})
-            .background(Color(white: 0.14))
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.12)))
+            .background(Color(white: 0.14), in: StatusMenuView.shape)
     }
 }
 
@@ -158,7 +156,7 @@ func renderScreenshot() {
         ZStack {
             LinearGradient(colors: [Color(hex: 0x202855), Color(hex: 0x514A9D), Color(hex: 0x3676A8)],
                            startPoint: .bottomLeading, endPoint: .topTrailing)
-            VStack(spacing: 14) {
+            VStack(spacing: 4) {
                 Text(plugged.menuBarPower)
                     .font(.system(size: 14, weight: .medium))
                     .monospacedDigit()

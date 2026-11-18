@@ -55,7 +55,7 @@ Prefer the terminal? One command skips steps 2 and 3:
 xattr -dr com.apple.quarantine /Applications/MacPower.app
 ```
 
-The wattage should appear in your menu bar right away. Click it to open the dropdown, then click **Settings**. The power button in the dropdown quits MacPower.
+The wattage should appear in your menu bar right away. Click it to open the dropdown, then click the **gear icon** to open Settings. The power button in the dropdown quits MacPower.
 
 ## Settings
 
@@ -152,7 +152,8 @@ Two more notes:
 
 - `Sources/MacPower/PowerMonitor.swift` — polls power, CPU and RAM every five seconds, with an immediate update on plug or unplug events
 - `Sources/MacPower/SMCReader.swift` — live power sensors from the SMC
-- `Sources/MacPower/MacPowerApp.swift` — menu bar item, popover and Settings window
+- `Sources/MacPower/MacPowerApp.swift` — menu bar item and Settings window
+- `Sources/MacPower/StatusPanel.swift` — positions the dropdown below the menu bar item
 - `Sources/MacPower/StatusMenuView.swift` — dropdown panel
 - `Sources/MacPower/SettingsView.swift` — preferences and Open at Login
 - `Resources/Info.plist` — `LSUIElement` so there is no Dock icon

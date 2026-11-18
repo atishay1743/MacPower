@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct StatusMenuView: View {
+    static let width: CGFloat = 264
+    static let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+
     @ObservedObject var monitor: PowerMonitor
     let onSettings: () -> Void
 
@@ -42,9 +45,11 @@ struct StatusMenuView: View {
 
             HStack {
                 Button(action: onSettings) {
-                    Label("Settings", systemImage: "gearshape")
+                    Image(systemName: "gearshape")
                 }
                 .keyboardShortcut(",")
+                .help("Settings")
+                .accessibilityLabel("Settings")
 
                 Spacer()
 
@@ -61,7 +66,9 @@ struct StatusMenuView: View {
             .buttonBorderShape(.roundedRectangle(radius: 9))
         }
         .padding(14)
-        .frame(width: 264, alignment: .leading)
+        .frame(width: Self.width, alignment: .leading)
+        .background(.regularMaterial, in: Self.shape)
+        .overlay { Self.shape.strokeBorder(Color.primary.opacity(0.12)).allowsHitTesting(false) }
     }
 
     @ViewBuilder
