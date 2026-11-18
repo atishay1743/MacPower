@@ -19,7 +19,7 @@
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
-macOS has no built-in live wattage display, so MacPower reads it from IOKit and puts it in the menu bar. The number is always readable at a glance, no clicking needed.
+macOS has no built-in live wattage display, so MacPower reads it from IOKit and puts it in the menu bar by default.
 
 - **Plugged in:** the menu bar shows live charger draw, e.g. `18W`
 - **Unplugged:** it shows what the machine is pulling from the battery, as a negative, e.g. `-9W`
@@ -55,7 +55,17 @@ Prefer the terminal? One command skips steps 2 and 3:
 xattr -dr com.apple.quarantine /Applications/MacPower.app
 ```
 
-The wattage should appear in your menu bar right away. Turn on **Open at Login** in the dropdown to keep it running; the login item needs a stable location, so move the app to `/Applications` before enabling it. Quit from the dropdown, or with Cmd+Q while it is open.
+The wattage should appear in your menu bar right away. Click it to open the dropdown, then click **Settings**. The power button in the dropdown quits MacPower.
+
+## Settings
+
+- **Show in Menu Bar** lets you choose power in watts, battery voltage in volts, or estimated time to full. The dropdown keeps all its readings available. Time to full displays an estimate while the battery is charging, **Full** when the battery is full, and a dash when there is no estimate.
+- **Only when plugged in** hides MacPower and pauses readings on battery. The menu bar item returns when you reconnect the charger. Open MacPower again from Applications to bring up Settings while the item is hidden.
+- **Open at Login** starts MacPower when you sign in. Move MacPower to Applications before enabling it.
+
+<p align="center">
+  <img src="docs/settings.png" alt="MacPower Settings with Time to Full selected and switches for Only when plugged in and Open at Login" width="440">
+</p>
 
 If you would rather not bypass Gatekeeper at all, [build it from source](#build-from-source). A copy you build yourself is never quarantined.
 
@@ -63,7 +73,7 @@ If you would rather not bypass Gatekeeper at all, [build it from source](#build-
 
 ## Uninstall
 
-Quit MacPower from the dropdown, turn off **Open at Login** first if you enabled it, then drag `MacPower.app` from Applications to the Trash. It keeps no other files.
+Turn off **Open at Login** in Settings if you enabled it, quit MacPower, then drag `MacPower.app` from Applications to the Trash.
 
 ## Troubleshooting
 
@@ -114,6 +124,7 @@ Live wattage is read from the System Management Controller (SMC), the chip the n
 | Plugged in or not | `IOPSCopyPowerSourcesInfo`, plus a change notification | |
 | Adapter rating | `AdapterDetails.Watts` | W |
 | Battery percent | `CurrentCapacity` relative to `MaxCapacity` | % |
+| Battery voltage | `Voltage` from `AppleSmartBattery` | V |
 | Time to full | macOS estimate or remaining charge divided by averaged battery current | min |
 | CPU | Change in Mach `HOST_CPU_LOAD_INFO` busy ticks across all cores | % (0–100) |
 | RAM | Mach `HOST_VM_INFO64`: non-purgeable internal + wired + compressed pages; total from `physicalMemory` | GB (1024³ bytes) |
@@ -141,8 +152,9 @@ Two more notes:
 
 - `Sources/MacPower/PowerMonitor.swift` — polls power, CPU and RAM every five seconds, with an immediate update on plug or unplug events
 - `Sources/MacPower/SMCReader.swift` — live power sensors from the SMC
-- `Sources/MacPower/MacPowerApp.swift` — `MenuBarExtra` scene
-- `Sources/MacPower/StatusMenuView.swift` — dropdown panel and login item toggle
+- `Sources/MacPower/MacPowerApp.swift` — menu bar item, popover and Settings window
+- `Sources/MacPower/StatusMenuView.swift` — dropdown panel
+- `Sources/MacPower/SettingsView.swift` — preferences and Open at Login
 - `Resources/Info.plist` — `LSUIElement` so there is no Dock icon
 - `scripts/` — generators for the app icon, DMG background and README images
 - `docs/` — images used by this README
