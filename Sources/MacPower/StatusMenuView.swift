@@ -1,17 +1,17 @@
-import ServiceManagement
 import SwiftUI
 
 struct StatusMenuView: View {
     @ObservedObject var monitor: PowerMonitor
-
-    @State private var openAtLogin = SMAppService.mainApp.status == .enabled
-    @State private var loginItemError: String?
+    let onSettings: () -> Void
 
     private var snapshot: PowerSnapshot { monitor.snapshot }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             headline
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             if snapshot.hasBattery {
                 VStack(alignment: .leading, spacing: 6) {
@@ -24,8 +24,8 @@ struct StatusMenuView: View {
                 VStack(spacing: 6) {
                     batteryLine
 
-                    if let minutes = snapshot.minutesToFull {
-                        usageDetail("Time to full", value: chargeTime(minutes))
+                    if let time = snapshot.chargeTime {
+                        usageDetail("Time to full", value: time)
                             .help("Estimated charging time. It can change as the charging rate changes.")
                     }
                 }
@@ -40,15 +40,11 @@ struct StatusMenuView: View {
                     .help("Memory used by apps, wired memory and compressed memory, excluding caches.")
             }
 
-            Divider()
-
             HStack {
-                Toggle("Open at Login", isOn: $openAtLogin)
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .onChange(of: openAtLogin) { _, isOn in
-                        setOpenAtLogin(isOn)
-                    }
+                Button(action: onSettings) {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .keyboardShortcut(",")
 
                 Spacer()
 
@@ -56,25 +52,16 @@ struct StatusMenuView: View {
                     NSApplication.shared.terminate(nil)
                 } label: {
                     Image(systemName: "power")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
                 .keyboardShortcut("q")
                 .help("Quit MacPower")
                 .accessibilityLabel("Quit MacPower")
             }
-
-            if let loginItemError {
-                Text(loginItemError)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.roundedRectangle(radius: 9))
         }
         .padding(14)
-        .frame(width: 240, alignment: .leading)
+        .frame(width: 264, alignment: .leading)
     }
 
     @ViewBuilder
@@ -94,8 +81,7 @@ struct StatusMenuView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                // Same figure as the menu bar: what the Mac pulls from the
-                // battery, shown negative.
+                // Power drawn from the battery is shown as negative.
                 Text(format(snapshot.systemWatts.map { -abs($0) }) ?? "--")
                     .font(.system(size: 30, weight: .semibold, design: .rounded))
                     .monospacedDigit()
@@ -133,16 +119,6 @@ struct StatusMenuView: View {
         return snapshot.isPluggedIn ? "On adapter" : "Discharging"
     }
 
-    private func chargeTime(_ minutes: Int) -> String {
-        guard minutes > 0 else { return "<1 min" }
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute]
-        formatter.unitsStyle = .abbreviated
-        formatter.zeroFormattingBehavior = .dropAll
-        let duration = formatter.string(from: Double(minutes) * 60) ?? "\(minutes) min"
-        return "≈ \(duration)"
-    }
-
     private func detail(_ label: String, watts: Double?, signed: Bool = false) -> some View {
         usageDetail(label, value: format(watts, signed: signed) ?? "--")
     }
@@ -168,19 +144,5 @@ struct StatusMenuView: View {
         guard let watts else { return nil }
         let sign = signed && watts > 0.05 ? "+" : ""
         return String(format: "\(sign)%.1f W", watts)
-    }
-
-    private func setOpenAtLogin(_ isOn: Bool) {
-        do {
-            if isOn {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-            loginItemError = nil
-        } catch {
-            openAtLogin = !isOn
-            loginItemError = "Could not update login item. Move MacPower to /Applications and try again."
-        }
     }
 }

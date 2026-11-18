@@ -32,8 +32,7 @@ func render<V: View>(_ view: V, name: String) {
     writePNG(NSBitmapImageRep(cgImage: cg), name)
 }
 
-/// Renders content that contains AppKit-backed controls (the login switch),
-/// which ImageRenderer cannot draw.
+/// Renders the dropdown with its native controls through AppKit.
 @MainActor
 func renderHosted<V: View>(_ view: V) -> NSImage {
     let host = NSHostingView(rootView: view.environment(\.colorScheme, .dark).environment(\.displayScale, 2))
@@ -79,10 +78,10 @@ let folderIcon = NSWorkspace.shared.icon(forFile: "/Applications")
 struct Panel: View {
     let monitor: PowerMonitor
     var body: some View {
-        StatusMenuView(monitor: monitor)
+        StatusMenuView(monitor: monitor, onSettings: {})
             .background(Color(white: 0.14))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.12)))
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.12)))
     }
 }
 
@@ -160,7 +159,7 @@ func renderScreenshot() {
             LinearGradient(colors: [Color(hex: 0x202855), Color(hex: 0x514A9D), Color(hex: 0x3676A8)],
                            startPoint: .bottomLeading, endPoint: .topTrailing)
             VStack(spacing: 14) {
-                Text(plugged.menuBarTitle)
+                Text(plugged.menuBarPower)
                     .font(.system(size: 14, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.white)
@@ -173,6 +172,19 @@ func renderScreenshot() {
         }
         .frame(width: 440, height: 400),
         name: "screenshot.png")
+}
+
+@MainActor
+func renderSettings() {
+    let defaults = UserDefaults(suiteName: "MacPower.Documentation")!
+    defaults.register(defaults: ["menuBarDisplay": MenuBarDisplay.timeToFull.rawValue])
+    let settings = MacPowerSettings(defaults: defaults)
+    let panel = renderHosted(
+        SettingsView(settings: settings)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    )
+    render(Image(nsImage: panel), name: "settings.png")
 }
 
 // MARK: - Install steps
@@ -340,6 +352,7 @@ MainActor.assumeIsolated {
     if !CommandLine.arguments.contains("--install-only") {
         renderScreenshot()
         renderHero()
+        renderSettings()
         if !CommandLine.arguments.contains("--screenshots-only") {
             renderMenuBar()
         }

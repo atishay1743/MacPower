@@ -14,6 +14,7 @@ struct PowerSnapshot: Equatable {
     var isFullyCharged = false
     var batteryPercent: Int?
     var minutesToFull: Int?
+    var batteryVoltage: Double?
 
     /// Live power drawn from the charger.
     var adapterWatts: Double?
@@ -32,12 +33,23 @@ struct PowerSnapshot: Equatable {
     /// Always-visible menu bar text: charger draw when plugged in, otherwise
     /// what the machine is pulling from the battery, shown as negative.
     /// A missing value shows "--" rather than a number from the wrong state.
-    var menuBarTitle: String {
+    var menuBarPower: String {
         guard hasBattery else { return "--" }
         if isPluggedIn {
             return adapterWatts.map { String(format: "%.0fW", $0) } ?? "--"
         }
         return systemWatts.map { String(format: "-%.0fW", $0) } ?? "--"
+    }
+
+    var chargeTime: String? {
+        guard let minutesToFull else { return nil }
+        guard minutesToFull > 0 else { return "<1 min" }
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.hour, .minute]
+        formatter.unitsStyle = .abbreviated
+        formatter.zeroFormattingBehavior = .dropAll
+        let duration = formatter.string(from: Double(minutesToFull) * 60) ?? "\(minutesToFull) min"
+        return "≈ \(duration)"
     }
 }
 
@@ -50,10 +62,17 @@ final class PowerMonitor: ObservableObject {
     private var timer: Timer?
     private var powerSourceLoop: CFRunLoopSource?
     private var previousCPUTicks: [UInt32]?
+    private var chargerOnly = false
 
-    init() {
+    init(chargerOnly: Bool = false) {
+        self.chargerOnly = chargerOnly
         smc = SMCReader()
+        observePowerSourceChanges()
         refresh()
+    }
+
+    private func startSampling() {
+        guard timer == nil else { return }
         let timer = Timer(timeInterval: Self.refreshInterval, repeats: true) { [weak self] _ in
             self?.refresh()
         }
@@ -61,7 +80,12 @@ final class PowerMonitor: ObservableObject {
         // Common mode keeps readings live while the menu bar panel is open.
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
-        observePowerSourceChanges()
+    }
+
+    func setChargerOnly(_ enabled: Bool) {
+        guard chargerOnly != enabled else { return }
+        chargerOnly = enabled
+        refresh()
     }
 
     /// A monitor frozen on one reading, with no polling. For previews and
@@ -78,8 +102,21 @@ final class PowerMonitor: ObservableObject {
         }
     }
 
-    func refresh() {
-        let next = read()
+    private func refresh() {
+        let powerSources = IOPSCopyPowerSourcesInfo()?.takeRetainedValue()
+        let sourceIsAC = powerSources.flatMap(Self.isOnExternalPower)
+        let properties = chargerOnly && sourceIsAC == false ? nil : Self.batteryProperties()
+        let isPluggedIn = sourceIsAC ?? (properties?["ExternalConnected"] as? Bool) ?? false
+        let next: PowerSnapshot
+        if chargerOnly && !isPluggedIn {
+            timer?.invalidate()
+            timer = nil
+            previousCPUTicks = nil
+            next = PowerSnapshot()
+        } else {
+            next = read(properties: properties, powerSources: powerSources, isPluggedIn: isPluggedIn)
+            startSampling()
+        }
         if next != snapshot {
             snapshot = next
         }
@@ -100,26 +137,27 @@ final class PowerMonitor: ObservableObject {
     }
 
     private func powerSourceChanged() {
-        guard let isPluggedIn = Self.isOnExternalPower(),
-              isPluggedIn != snapshot.isPluggedIn else { return }
+        let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue()
+        if let isPluggedIn = info.flatMap(Self.isOnExternalPower), isPluggedIn == snapshot.isPluggedIn { return }
         refresh()
         // Let sensors settle before the next read, without a burst of updates.
         timer?.fireDate = Date(timeIntervalSinceNow: Self.refreshInterval)
     }
 
-    private func read() -> PowerSnapshot {
+    private func read(properties: [String: Any]?, powerSources: CFTypeRef?, isPluggedIn: Bool) -> PowerSnapshot {
         var snapshot = PowerSnapshot()
+        snapshot.isPluggedIn = isPluggedIn
         snapshot.cpuPercent = readCPUPercent()
         snapshot.memoryTotalBytes = ProcessInfo.processInfo.physicalMemory
         snapshot.memoryUsedBytes = Self.readMemoryUsedBytes()
-        guard let properties = Self.batteryProperties() else { return snapshot }
+        guard let properties else { return snapshot }
 
-        let powerSources = IOPSCopyPowerSourcesInfo()?.takeRetainedValue()
         snapshot.hasBattery = (properties["BatteryInstalled"] as? Bool) ?? true
-        snapshot.isPluggedIn = powerSources.flatMap(Self.isOnExternalPower)
-            ?? (properties["ExternalConnected"] as? Bool) ?? false
         snapshot.isCharging = (properties["IsCharging"] as? Bool) ?? false
         snapshot.isFullyCharged = (properties["FullyCharged"] as? Bool) ?? false
+        if let millivolts = Self.milliValue(properties["Voltage"]), millivolts > 0 {
+            snapshot.batteryVoltage = millivolts / 1000
+        }
         if let current = properties["CurrentCapacity"] as? NSNumber {
             // Some Intel Macs report capacity in mAh instead of percent.
             let maximum = (properties["MaxCapacity"] as? NSNumber)?.doubleValue ?? 100
@@ -245,11 +283,6 @@ final class PowerMonitor: ObservableObject {
 
     /// Whether the Mac is running on a charger right now. Unlike the battery
     /// registry entry, this is updated the moment the cable moves.
-    private static func isOnExternalPower() -> Bool? {
-        let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue()
-        return info.flatMap(Self.isOnExternalPower)
-    }
-
     private static func isOnExternalPower(_ info: CFTypeRef) -> Bool? {
         guard let type = IOPSGetProvidingPowerSourceType(info)?.takeUnretainedValue() as String? else { return nil }
         return type == kIOPSACPowerValue
