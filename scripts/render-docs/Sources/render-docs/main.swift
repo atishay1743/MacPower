@@ -36,7 +36,7 @@ func render<V: View>(_ view: V, name: String) {
 /// which ImageRenderer cannot draw.
 @MainActor
 func renderHosted<V: View>(_ view: V) -> NSImage {
-    let host = NSHostingView(rootView: view.environment(\.colorScheme, .dark))
+    let host = NSHostingView(rootView: view.environment(\.colorScheme, .dark).environment(\.displayScale, 2))
     host.frame = CGRect(origin: .zero, size: host.fittingSize)
     let window = NSWindow(contentRect: host.frame, styleMask: .borderless, backing: .buffered, defer: false)
     window.appearance = NSAppearance(named: .darkAqua)
@@ -44,7 +44,19 @@ func renderHosted<V: View>(_ view: V) -> NSImage {
     window.isOpaque = false
     window.contentView = host
     host.layoutSubtreeIfNeeded()
-    let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+    let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: Int((host.bounds.width * 2).rounded(.up)),
+        pixelsHigh: Int((host.bounds.height * 2).rounded(.up)),
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    )!
+    rep.size = host.bounds.size
     host.cacheDisplay(in: host.bounds, to: rep)
     let image = NSImage(size: host.bounds.size)
     image.addRepresentation(rep)
@@ -81,8 +93,9 @@ plugged.hasBattery = true
 plugged.isPluggedIn = true
 plugged.isCharging = true
 plugged.batteryPercent = 64
+plugged.minutesToFull = 85
 plugged.adapterWatts = 18.3
-plugged.adapterRatedWatts = 20
+plugged.adapterRatedWatts = 90
 plugged.systemWatts = 7.2
 plugged.batteryWatts = 11.1
 plugged.cpuPercent = 12.4
@@ -137,6 +150,29 @@ func renderHero() {
         }
         .frame(width: 720, height: 460),
         name: "hero.png")
+}
+
+@MainActor
+func renderScreenshot() {
+    let panel = renderHosted(Panel(monitor: PowerMonitor(fixed: plugged)))
+    render(
+        ZStack {
+            LinearGradient(colors: [Color(hex: 0x202855), Color(hex: 0x514A9D), Color(hex: 0x3676A8)],
+                           startPoint: .bottomLeading, endPoint: .topTrailing)
+            VStack(spacing: 14) {
+                Text(plugged.menuBarTitle)
+                    .font(.system(size: 14, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.black.opacity(0.35)))
+                Image(nsImage: panel)
+                    .shadow(color: .black.opacity(0.35), radius: 24, y: 12)
+            }
+        }
+        .frame(width: 440, height: 400),
+        name: "screenshot.png")
 }
 
 // MARK: - Install steps
@@ -302,10 +338,15 @@ func renderMenuBar() {
 
 MainActor.assumeIsolated {
     if !CommandLine.arguments.contains("--install-only") {
+        renderScreenshot()
         renderHero()
-        renderMenuBar()
+        if !CommandLine.arguments.contains("--screenshots-only") {
+            renderMenuBar()
+        }
     }
-    render(DragStep(), name: "install-1-drag.png")
-    render(BlockedStep(), name: "install-2-blocked.png")
-    render(OpenAnywayStep(), name: "install-3-open-anyway.png")
+    if !CommandLine.arguments.contains("--screenshots-only") {
+        render(DragStep(), name: "install-1-drag.png")
+        render(BlockedStep(), name: "install-2-blocked.png")
+        render(OpenAnywayStep(), name: "install-3-open-anyway.png")
+    }
 }
