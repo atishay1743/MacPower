@@ -18,7 +18,7 @@ enum MacPowerApp {
 final class MacPowerDelegate: NSObject, NSApplicationDelegate {
     private let settings = MacPowerSettings()
     private lazy var monitor = PowerMonitor(chargerOnly: settings.chargerOnly)
-    private let popover = NSPopover()
+    private var panel: StatusPanel?
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var statusUpdates: AnyCancellable?
@@ -27,15 +27,12 @@ final class MacPowerDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.target = self
-        item.button?.action = #selector(togglePopover)
+        item.button?.action = #selector(togglePanel)
         statusItem = item
 
-        popover.behavior = .transient
-        let content = NSHostingController(rootView: StatusMenuView(monitor: monitor) { [weak self] in
+        panel = StatusPanel(content: StatusMenuView(monitor: monitor) { [weak self] in
             self?.openSettings()
         })
-        content.sizingOptions.insert(.preferredContentSize)
-        popover.contentViewController = content
 
         chargerOnlyUpdates = settings.$chargerOnly.removeDuplicates().sink { [weak self] enabled in
             self?.monitor.setChargerOnly(enabled)
@@ -57,7 +54,7 @@ final class MacPowerDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem(snapshot: PowerSnapshot, display: MenuBarDisplay, chargerOnly: Bool) {
         let visible = !chargerOnly || snapshot.isPluggedIn
-        if !visible { popover.close() }
+        if !visible { panel?.orderOut(nil) }
         let title = display.title(for: snapshot)
         let button = statusItem?.button
         button?.attributedTitle = NSAttributedString(string: title, attributes: [
@@ -66,19 +63,29 @@ final class MacPowerDelegate: NSObject, NSApplicationDelegate {
         button?.setAccessibilityLabel("MacPower, \(display.label): \(title)")
         button?.toolTip = "MacPower · \(display.label)"
         statusItem?.isVisible = visible
-    }
-
-    @objc private func togglePopover() {
-        if popover.isShown {
-            popover.performClose(nil)
-        } else if let button = statusItem?.button {
-            NSApp.activate()
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        if panel?.isVisible == true {
+            // Size after SwiftUI receives the snapshot and updates the rows.
+            DispatchQueue.main.async { [weak self] in self?.repositionPanel() }
         }
     }
 
+    @objc private func togglePanel() {
+        guard let panel, let button = statusItem?.button else { return }
+        if panel.isVisible {
+            panel.orderOut(nil)
+        } else if panel.position(below: button, clickLocation: NSEvent.mouseLocation) {
+            NSApp.activate()
+            panel.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    private func repositionPanel() {
+        guard let panel, panel.isVisible, let button = statusItem?.button else { return }
+        _ = panel.position(below: button)
+    }
+
     private func openSettings() {
-        popover.close()
+        panel?.orderOut(nil)
         let window: NSWindow
         if let settingsWindow {
             window = settingsWindow
